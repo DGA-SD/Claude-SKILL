@@ -295,6 +295,8 @@ cp -r Claude-SKILL/flow-sim ~/.claude/skills/
 
 **ตัวอย่างผลงานจากฟอร์แมตนี้:** การออก VC แบบ Pull/Push (OID4VCI) · การนำเสนอ VP (OID4VP) · mDL แบบ offline (ISO/IEC 18013-5 — 2 แท็บ: เฟสเตรียมล่วงหน้า / เฟส ณ จุดตรวจที่ไม่แตะอินเทอร์เน็ตเลย พร้อมหรี่โซนออนไลน์ทั้งแถบ)
 
+**🔴 ดู demo สด (กดปุ่ม/เล่นแอนิเมชันได้จริง):** [mDL แบบ offline — live demo](https://dga-sd.github.io/Claude-SKILL/flow-sim/example/mDL-offline-demo/) (ไฟล์อยู่ที่ [`flow-sim/example/mDL-offline-demo/`](flow-sim/example/mDL-offline-demo/))
+
 ---
 
 ## หมายเหตุด้าน PDPA / ความปลอดภัยข้อมูล
