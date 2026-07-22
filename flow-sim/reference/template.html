@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>mDL — การแสดงใบขับขี่ดิจิทัลแบบ Offline (ISO/IEC 18013-5)</title>
+<style>
+  :root{
+    --bg:#0c1020; --bg2:#121831; --card:#18203c; --line:#33405e;
+    --txt:#e8ecf6; --muted:#9aa6c6; --accent:#5cd0ff;
+    --mdl:#ffcf5c; --qr:#5cd0ff; --req:#b58cff; --key:#5ee6a8; --cert:#ff9f6b; --ble:#ff7fb0; --sd:#7ae5d8; --ok:#c9f76f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Segoe UI","Noto Sans Thai",system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 700px at 70% -10%,#1b2547 0%,var(--bg) 60%);
+    color:var(--txt); min-height:100vh; padding:22px 26px 40px;
+  }
+  header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:13px}
+  .tabs{display:flex;gap:10px;margin:16px 0 10px;flex-wrap:wrap}
+  .tab{
+    cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:10px 18px;border-radius:12px;font-size:14px;font-weight:600;transition:.18s;
+    display:flex;align-items:center;gap:8px;
+  }
+  .tab:hover{border-color:#4a5a82;color:var(--txt)}
+  .tab.active{background:linear-gradient(180deg,#27345e,#1b274d);border-color:var(--accent);color:#fff;
+    box-shadow:0 0 0 1px var(--accent),0 8px 26px -10px var(--accent)}
+  .tab small{font-weight:500;opacity:.8}
+  .flow{display:none}
+  .flow.show{display:block}
+  .desc{color:var(--muted);font-size:13.5px;max-width:980px;line-height:1.6;margin:2px 0 14px}
+  .desc b{color:var(--txt)}
+  .stage{
+    display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;
+  }
+  .canvas{
+    background:linear-gradient(180deg,var(--bg2),#0e1429);
+    border:1px solid var(--line);border-radius:18px;padding:6px;overflow:hidden;position:relative;
+  }
+  svg{width:100%;height:auto;display:block}
+  /* offline badge (tab 2) */
+  .offline-flag{
+    position:absolute;top:14px;right:16px;z-index:2;font-size:12px;font-weight:800;letter-spacing:.4px;
+    color:#06371f;background:linear-gradient(180deg,#7df0b4,#4ecf90);border-radius:20px;padding:6px 14px;
+    animation:flagpulse 1.6s ease-in-out infinite;
+  }
+  @keyframes flagpulse{0%,100%{box-shadow:0 0 0 0 rgba(94,230,168,.45)}50%{box-shadow:0 0 0 9px rgba(94,230,168,0)}}
+  /* zones */
+  .zone-label{fill:var(--muted);font-size:13px;font-weight:700;letter-spacing:.3px}
+  .zone-divider{stroke:#3a4a6e;stroke-width:1.6;stroke-dasharray:7 7;opacity:.7}
+  /* connectors */
+  .conn{fill:none;stroke:var(--line);stroke-width:2.5;opacity:.45;transition:opacity .25s,stroke .25s}
+  .conn.active{stroke:var(--c,var(--accent));stroke-width:3.6;opacity:1;
+    stroke-dasharray:11 9;animation:dash .55s linear infinite;
+    filter:drop-shadow(0 0 6px var(--c,var(--accent)))}
+  @keyframes dash{to{stroke-dashoffset:-40}}
+  /* nodes */
+  .node .box{fill:url(#nodefill);stroke:var(--line);stroke-width:1.6}
+  .node.active .box{stroke:var(--accent);filter:drop-shadow(0 0 10px rgba(92,208,255,.5))}
+  .node.pulse .box{animation:pulse .7s ease}
+  @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+  .node .icon{font-size:30px}
+  .node .title{fill:var(--txt);font-size:16px;font-weight:700}
+  .node .role{fill:var(--muted);font-size:11.5px}
+  .node{transform-box:fill-box;transform-origin:center}
+  /* token */
+  .token{opacity:0;transition:opacity .2s}
+  .token.show{opacity:1}
+  .token circle{filter:drop-shadow(0 0 8px var(--c))}
+  .token text{fill:#0c1020;font-size:12px;font-weight:800;text-anchor:middle;dominant-baseline:central}
+  /* side panel */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+  .panel h3{margin:0 0 12px;font-size:14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+  ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+  ol.steps li{
+    display:flex;gap:11px;padding:11px 11px;border-radius:11px;margin-bottom:5px;cursor:pointer;
+    border:1px solid transparent;transition:.16s;align-items:flex-start;
+  }
+  ol.steps li:hover{background:#1d2747}
+  ol.steps li.active{background:#1d2747;border-color:var(--c,var(--accent));
+    box-shadow:0 0 0 1px var(--c,var(--accent)) inset}
+  ol.steps li.done .num{background:var(--key);color:#06371f}
+  .num{flex:0 0 26px;height:26px;border-radius:50%;background:#2a365b;color:var(--txt);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  ol.steps li.active .num{background:var(--c,var(--accent));color:#0c1020}
+  .step-t{font-size:13.5px;font-weight:700;line-height:1.35}
+  .step-d{font-size:12px;color:var(--muted);line-height:1.45;margin-top:3px}
+  .badge{display:inline-block;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:6px;
+    color:#0c1020;margin-left:6px;vertical-align:middle}
+  .controls{display:flex;gap:9px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  button.ctl{background:#23304f;border:1px solid var(--line);color:var(--txt);border-radius:10px;
+    padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+  button.ctl:hover{background:#2c3b62;border-color:#4a5a82}
+  button.ctl.primary{background:linear-gradient(180deg,#2f8fd8,#1f6fb0);border-color:#3aa0e8;color:#fff}
+  select.ctl{background:#23304f;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:9px;font-size:13px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .foot{margin-top:18px;color:#6b769b;font-size:11.5px;line-height:1.6}
+  @media(max-width:980px){.stage{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚗 mDL — แสดงใบขับขี่ดิจิทัลแบบ Offline</h1>
+  <span class="sub">ISO/IEC 18013-5 · mdoc · Device Engagement (QR) + BLE · ติดตามการเคลื่อนที่ของข้อมูลตามเส้นทาง</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-flow="prep">🌐 เฟสเตรียมล่วงหน้า <small>· ออก mDL + โหลด Trust List (ต้องมีเน็ตเป็นครั้งคราว)</small></div>
+  <div class="tab" data-flow="offline">✈️ เฟส ณ จุดตรวจ <small>· Offline 100% — QR + BLE เท่านั้น</small></div>
+</div>
+
+<!-- ============ PREP (online, ahead of time) ============ -->
+<section class="flow show" id="flow-prep">
+  <p class="desc">
+    <b>เฟสเตรียมล่วงหน้า (ต้องออนไลน์เป็นครั้งคราว):</b> ก่อนจะตรวจแบบ offline ได้ ทั้งสองฝั่งต้อง "ตุนเสบียง" ไว้ก่อน —
+    ฝั่ง Holder ขอออก <b>mDL</b> เก็บเข้ากระเป๋า (กุญแจอุปกรณ์เกิดใน<b>ชิปนิรภัยของมือถือ</b> และไม่ออกจากเครื่อง)
+    ส่วนฝั่งเครื่องตรวจโหลด <b>Trust List (ใบรับรองราก IACA)</b> เก็บไว้ในเครื่อง
+    — หลังจบเฟสนี้ การพบกัน ณ จุดตรวจ<b>ไม่ต้องใช้อินเทอร์เน็ตอีกเลย</b>.
+  </p>
+  <div class="stage">
+    <div class="canvas"><div class="svg-host"></div></div>
+    <aside class="panel">
+      <h3>ลำดับการทำงาน</h3>
+      <ol class="steps"></ol>
+      <div class="controls">
+        <button class="ctl primary act-play">▶ เล่นอัตโนมัติ</button>
+        <button class="ctl act-prev">◀ ก่อนหน้า</button>
+        <button class="ctl act-next">ถัดไป ▶</button>
+        <button class="ctl act-reset">⟲ เริ่มใหม่</button>
+        <select class="ctl act-speed">
+          <option value="1.6">ช้า</option>
+          <option value="1" selected>ปกติ</option>
+          <option value="0.55">เร็ว</option>
+        </select>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ OFFLINE (at checkpoint) ============ -->
+<section class="flow" id="flow-offline">
+  <p class="desc">
+    <b>เฟสนำเสนอ ณ จุดตรวจ (offline 100%):</b> ข้อมูลเดินทางผ่าน <b>QR (แสง)</b> และ <b>BLE (คลื่นวิทยุระยะใกล้)</b> เท่านั้น
+    — ไม่มีฝั่งใดเชื่อมอินเทอร์เน็ต ความน่าเชื่อถือมาจาก<b>ลายเซ็นที่พกมาในตัว mDL</b> (MSO ของ Issuer)
+    บวกกับ <b>Trust List ที่โหลดไว้ล่วงหน้า</b> — โซนออนไลน์ด้านบนถูกหรี่ไว้ เพราะ<b>ไม่ถูกแตะเลย</b>ในเฟสนี้.
+  </p>
+  <div class="stage">
+    <div class="canvas"><div class="offline-flag">✈️ OFFLINE — ไม่แตะอินเทอร์เน็ต</div><div class="svg-host"></div></div>
+    <aside class="panel">
+      <h3>ลำดับการทำงาน</h3>
+      <ol class="steps"></ol>
+      <div class="controls">
+        <button class="ctl primary act-play">▶ เล่นอัตโนมัติ</button>
+        <button class="ctl act-prev">◀ ก่อนหน้า</button>
+        <button class="ctl act-next">ถัดไป ▶</button>
+        <button class="ctl act-reset">⟲ เริ่มใหม่</button>
+        <select class="ctl act-speed">
+          <option value="1.6">ช้า</option>
+          <option value="1" selected>ปกติ</option>
+          <option value="0.55">เร็ว</option>
+        </select>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--key)"></i> Device Key (เกิดในชิปนิรภัย)</span>
+  <span><i class="dot" style="background:var(--req)"></i> คำขอ (Request)</span>
+  <span><i class="dot" style="background:var(--mdl)"></i> mDL / mdoc (ข้อมูล + ลายเซ็น Issuer)</span>
+  <span><i class="dot" style="background:var(--cert)"></i> ใบรับรอง IACA / Trust List</span>
+  <span><i class="dot" style="background:var(--qr)"></i> QR — Device Engagement</span>
+  <span><i class="dot" style="background:var(--ble)"></i> BLE Secure Session</span>
+  <span><i class="dot" style="background:var(--sd)"></i> ยินยอม + Selective Disclosure</span>
+  <span><i class="dot" style="background:var(--ok)"></i> ผลการตรวจสอบ (ในเครื่อง)</span>
+</div>
+
+<p class="foot">
+  อ้างอิง <b>ISO/IEC 18013-5</b> (mobile Driving Licence — mdoc) ซึ่งมาตรฐาน TGIX VC/VP รองรับควบคู่กับ SD-JWT.
+  ศัพท์สำคัญ: <b>MSO</b> (Mobile Security Object — ชุด digest รายฟิลด์ + device public key ที่ Issuer เซ็นกำกับ) ·
+  <b>IACA</b> (Issuing Authority CA — ใบรับรองรากของผู้ออก) · <b>VICAL</b> (บัญชีรวมใบรับรอง IACA จากหลายผู้ออก) ·
+  <b>DeviceAuth</b> (ลายเซ็นจาก device key ในชิปนิรภัย = holder binding).
+  ข้อสังเกตของโหมด offline: เช็ค "สถานะสด" (เพิกถอน ณ วินาทีนี้) ไม่ได้ — ระบบจึงคุมความสดด้วย<b>อายุของ MSO</b>
+  (Issuer เซ็นออกใหม่เป็นระยะ เมื่อหมดอายุเครื่องตรวจจะไม่ยอมรับ).
+</p>
+
+<script>
+/* ---------- shared geometry config ---------- */
+const NODES = {
+  issuer: {x:250, y:150, icon:"🏛️", title:"Issuer",     role:"กรมการขนส่งทางบก · ผู้ออก mDL"},
+  vical:  {x:950, y:150, icon:"📜", title:"Trust List", role:"VICAL · ใบรับรองราก IACA"},
+  wallet: {x:250, y:545, icon:"📱", title:"Wallet",     role:"Holder · mDL ในมือถือ"},
+  reader: {x:950, y:545, icon:"🛂", title:"Reader",     role:"Verifier · เครื่องตรวจเจ้าหน้าที่"},
+};
+const NW=200, NH=98;
+
+// connectors (one path each, start->end as written)
+const CONN = {
+  iss_wallet:   "M250,199 L250,496",
+  iss_vical:    "M350,150 L850,150",
+  vical_reader: "M950,199 L950,496",
+  wr_top:       "M350,521 C480,458 720,458 850,521",
+  wr_bot:       "M850,569 C720,634 480,634 350,569",
+};
+
+const KIND = {
+  key:{c:"var(--key)",t:"Key"},  req:{c:"var(--req)",t:"Req"},
+  mdl:{c:"var(--mdl)",t:"mDL"},  cert:{c:"var(--cert)",t:"Cert"},
+  qr:{c:"var(--qr)",t:"QR"},     ble:{c:"var(--ble)",t:"BLE"},
+  sd:{c:"var(--sd)",t:"SD"},     ok:{c:"var(--ok)",t:"✓"},
+};
+const BADGE = {key:"Device Key",req:"Request",mdl:"mdoc",cert:"Trust List",qr:"Engagement",ble:"Session",sd:"Consent+SD",ok:"Verify"};
+
+/* ---------- step scripts ---------- */
+const PREP = [
+  {t:"สร้าง Device Key ในชิปนิรภัย", d:"Wallet สั่งชิปนิรภัยของมือถือ (Secure Enclave / TEE / StrongBox) สร้างคู่กุญแจของอุปกรณ์ — private key เกิดในชิปและไม่เคยออกจากเครื่องตลอดชีวิต",
+    segs:[], node:"wallet", focus:["wallet"], kind:"key"},
+  {t:"ยื่นขอออก mDL", d:"Wallet ส่งคำขอ + การพิสูจน์ตัวตนของผู้ขอ + device public key ขึ้นไปยังผู้ออก — ขั้นนี้ใช้อินเทอร์เน็ต (ครั้งเดียวตอนออกเอกสาร)",
+    segs:[{id:"iss_wallet",rev:true}], focus:["wallet","issuer"], kind:"req"},
+  {t:"ออก mDL (mdoc + MSO)", d:"Issuer ตรวจตัวตนแล้วสร้าง mdoc: ข้อมูลใบขับขี่ + digest รายฟิลด์ + ผูก device public key ไว้ใน MSO เซ็นกำกับด้วยกุญแจ Document Signer แล้วส่งลงกระเป๋า",
+    segs:[{id:"iss_wallet"}], focus:["issuer","wallet"], kind:"mdl"},
+  {t:"เผยแพร่ใบรับรองผู้ออก (IACA)", d:"Issuer เผยแพร่ใบรับรองราก IACA เข้าบัญชีความน่าเชื่อถือกลาง (Trust List / VICAL) เพื่อให้เครื่องตรวจทุกเครื่องรู้จักลายเซ็นของผู้ออกรายนี้",
+    segs:[{id:"iss_vical"}], focus:["issuer","vical"], kind:"cert"},
+  {t:"เครื่องตรวจโหลด Trust List", d:"Reader ดาวน์โหลด/อัปเดต Trust List เป็นระยะตอนที่มีเน็ต — นี่คือ 'เสบียงความเชื่อถือ' ที่ทำให้ตรวจ offline ได้ในภายหลัง",
+    segs:[{id:"vical_reader"}], focus:["vical","reader"], kind:"cert"},
+  {t:"พร้อมทำงาน Offline", d:"ถึงจุดนี้ Wallet มี mDL + device key ส่วน Reader มี Trust List ครบ — การพบกัน ณ จุดตรวจหลังจากนี้ไม่ต้องใช้อินเทอร์เน็ตอีกเลย",
+    segs:[], node:"reader", focus:["wallet","reader"], kind:"ok"},
+];
+const OFFLINE = [
+  {t:"เปิด mDL — แสดง QR (Device Engagement)", d:"Holder เปิดกระเป๋า เครื่องสร้าง ephemeral key ชุดใหม่ แล้วแสดง QR ที่บรรจุ key นี้ + ข้อมูลช่องทาง BLE — ใน QR ไม่มีข้อมูลส่วนตัวใด ๆ",
+    segs:[], node:"wallet", focus:["wallet"], kind:"qr"},
+  {t:"Reader สแกน QR", d:"เจ้าหน้าที่สแกน QR จากจอมือถือของ Holder — ข้อมูล engagement เดินทางผ่าน 'แสง' จากจอถึงกล้อง ไม่ผ่านเครือข่ายใดเลย",
+    segs:[{id:"wr_top"}], focus:["wallet","reader"], kind:"qr"},
+  {t:"เปิดวง BLE + เข้ารหัสช่องทาง", d:"สองเครื่องจับคู่ผ่าน Bluetooth Low Energy แล้วทำ ECDH จาก ephemeral key ทั้งสองฝั่ง → ได้ session key ที่ใช้เข้ารหัสทุกข้อความหลังจากนี้",
+    segs:[{id:"wr_bot"},{id:"wr_top"}], focus:["wallet","reader"], kind:"ble"},
+  {t:"ส่งคำขอข้อมูล (mdoc request)", d:"Reader ระบุฟิลด์ที่ต้องการ เช่น ชื่อ รูปถ่าย สถานะใบอนุญาต หรือขอเพียง age_over_20 — ส่งผ่านช่อง BLE ที่เข้ารหัสแล้ว",
+    segs:[{id:"wr_bot"}], focus:["reader","wallet"], kind:"req"},
+  {t:"Holder ยินยอม + เลือกเปิดเผย", d:"จอมือถือแสดงว่าใครขอฟิลด์อะไร Holder เลือกเปิดเผยเฉพาะที่จำเป็น (selective disclosure) จากนั้นชิปนิรภัยเซ็น DeviceAuth ด้วย device private key",
+    segs:[], node:"wallet", focus:["wallet"], kind:"sd"},
+  {t:"ส่งคำตอบ (mdoc response)", d:"Wallet ส่งเฉพาะฟิลด์ที่เลือก + MSO (ลายเซ็นของ Issuer) + DeviceAuth (ลายเซ็นของเครื่อง) กลับให้ Reader ผ่าน BLE",
+    segs:[{id:"wr_top"}], focus:["wallet","reader"], kind:"mdl"},
+  {t:"ตรวจสอบครบชุด — ในเครื่อง", d:"Reader ตรวจ 4 อย่างโดยไม่แตะเน็ต: ① สายใบรับรองไล่ถึง IACA ใน Trust List ② digest รายฟิลด์ตรงกับ MSO ③ DeviceAuth ตรงกับ device key ที่ผูกใน MSO (กันการใช้ mDL ที่ขโมยมา) ④ MSO ยังไม่หมดอายุ",
+    segs:[], node:"reader", focus:["reader"], kind:"ok"},
+  {t:"แสดงผล ✓ — ไม่มีสักแพ็กเก็ตออกเน็ต", d:"ตลอดขั้น 1–7 ไม่มีการเชื่อมอินเทอร์เน็ตเลย ความสดของสถานะจึงขึ้นกับอายุ MSO (Issuer เซ็นใหม่เป็นระยะ) ไม่ใช่การเช็คสถานะแบบสด",
+    segs:[], node:"reader", focus:["reader"], kind:"ok"},
+];
+
+/* ---------- renderer / controller ---------- */
+const SVGNS="http://www.w3.org/2000/svg";
+function el(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+
+function buildFlow(section, steps, opts={}){
+  const host = section.querySelector(".svg-host");
+  const svg = el("svg",{viewBox:"0 0 1200 700"});
+  // defs
+  const defs = el("defs",{});
+  defs.innerHTML = `
+    <linearGradient id="nodefill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d2747"/><stop offset="1" stop-color="#141c36"/>
+    </linearGradient>`;
+  svg.appendChild(defs);
+
+  // zones: online (top) / offline (bottom)
+  const gZone = el("g",{});
+  const tint = el("rect",{x:18,y:347,width:1164,height:336,rx:14,fill:"rgba(94,230,168,.035)"});
+  gZone.appendChild(tint);
+  gZone.appendChild(el("line",{x1:30,y1:347,x2:1170,y2:347,class:"zone-divider"}));
+  const zl1 = el("text",{x:40,y:44,class:"zone-label"});
+  zl1.textContent = "🌐 โซนออนไลน์ — เตรียมล่วงหน้าเป็นครั้งคราว";
+  const zl2 = el("text",{x:40,y:382,class:"zone-label"});
+  zl2.textContent = "✈️ โซน OFFLINE — ณ จุดตรวจ ไม่ใช้อินเทอร์เน็ต";
+  gZone.appendChild(zl1); gZone.appendChild(zl2);
+  svg.appendChild(gZone);
+
+  // connectors
+  const gConn = el("g",{});
+  const connEls = {};
+  for(const id in CONN){
+    const p = el("path",{d:CONN[id],class:"conn"});
+    p.dataset.id=id; connEls[id]=p; gConn.appendChild(p);
+  }
+  svg.appendChild(gConn);
+
+  // nodes
+  const gNodes = el("g",{});
+  const nodeEls = {};
+  for(const id in NODES){
+    const n=NODES[id];
+    const g=el("g",{class:"node"}); g.dataset.id=id;
+    g.appendChild(el("rect",{class:"box",x:n.x-NW/2,y:n.y-NH/2,width:NW,height:NH,rx:16}));
+    const ic=el("text",{class:"icon",x:n.x,y:n.y-14,"text-anchor":"middle"});ic.textContent=n.icon;g.appendChild(ic);
+    const tt=el("text",{class:"title",x:n.x,y:n.y+16,"text-anchor":"middle"});tt.textContent=n.title;g.appendChild(tt);
+    const rr=el("text",{class:"role",x:n.x,y:n.y+34,"text-anchor":"middle"});rr.textContent=n.role;g.appendChild(rr);
+    nodeEls[id]=g; gNodes.appendChild(g);
+  }
+  svg.appendChild(gNodes);
+
+  // dim online-only elements in the offline tab
+  if(opts.dim){
+    (opts.dim.nodes||[]).forEach(id=>{nodeEls[id].style.opacity=".22"});
+    (opts.dim.conns||[]).forEach(id=>{connEls[id].style.opacity=".12"});
+    zl1.style.opacity=".35";
+    zl2.style.fill="var(--key)";
+  }
+
+  // token
+  const token=el("g",{class:"token"});
+  const tCirc=el("circle",{r:17});
+  const tTxt=el("text",{});
+  token.appendChild(tCirc);token.appendChild(tTxt);
+  svg.appendChild(token);
+
+  host.appendChild(svg);
+
+  // side steps list
+  const ol=section.querySelector("ol.steps");
+  steps.forEach((s,i)=>{
+    const li=document.createElement("li");
+    li.style.setProperty("--c",KIND[s.kind].c);
+    li.innerHTML=`<div class="num">${i+1}</div><div>
+      <div class="step-t">${s.t}<span class="badge" style="background:${KIND[s.kind].c}">${BADGE[s.kind]}</span></div>
+      <div class="step-d">${s.d}</div></div>`;
+    li.addEventListener("click",()=>goto(i,true));
+    ol.appendChild(li);
+  });
+  const lis=[...ol.children];
+
+  /* ---- engine ---- */
+  let idx=-1, playing=false, raf=null, speed=1;
+  section.querySelector(".act-speed").addEventListener("change",e=>speed=parseFloat(e.target.value));
+
+  function pointAt(segs,t){
+    const lens=segs.map(s=>connEls[s.id].getTotalLength());
+    const total=lens.reduce((a,b)=>a+b,0)||1;
+    let d=t*total;
+    for(let i=0;i<segs.length;i++){
+      if(d<=lens[i]||i===segs.length-1){
+        const p=connEls[segs[i].id];
+        const dl=Math.max(0,Math.min(d,lens[i]));
+        return p.getPointAtLength(segs[i].rev?(lens[i]-dl):dl);
+      }
+      d-=lens[i];
+    }
+  }
+  function clearActive(){
+    Object.values(connEls).forEach(p=>{p.classList.remove("active");p.style.removeProperty("--c")});
+    Object.values(nodeEls).forEach(n=>n.classList.remove("active","pulse"));
+  }
+  function setList(i){
+    lis.forEach((li,k)=>{li.classList.toggle("active",k===i);li.classList.toggle("done",k<i);});
+  }
+
+  function animateStep(i){
+    return new Promise(res=>{
+      if(raf)cancelAnimationFrame(raf);
+      const s=steps[i];
+      clearActive(); setList(i);
+      s.focus.forEach(id=>nodeEls[id].classList.add("active"));
+      s.segs.forEach(seg=>{connEls[seg.id].classList.add("active");connEls[seg.id].style.setProperty("--c",KIND[s.kind].c);});
+      // token setup
+      tCirc.style.setProperty("--c",KIND[s.kind].c);
+      tCirc.setAttribute("fill",KIND[s.kind].c);
+      tTxt.textContent=KIND[s.kind].t;
+      const dur=1700*speed;
+
+      if(s.segs.length===0){
+        // node-local: pulse + show token on node
+        const n=NODES[s.node];
+        token.setAttribute("transform",`translate(${n.x},${n.y-NH/2-6})`);
+        token.classList.add("show");
+        nodeEls[s.node].classList.add("pulse");
+        setTimeout(()=>{res();},dur);
+        return;
+      }
+      token.classList.add("show");
+      const start=performance.now();
+      function frame(now){
+        let t=(now-start)/dur; if(t>1)t=1;
+        const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; // easeInOut
+        const pt=pointAt(s.segs,e);
+        token.setAttribute("transform",`translate(${pt.x},${pt.y})`);
+        if(t<1){raf=requestAnimationFrame(frame);}
+        else{
+          // arrival pulse on destination
+          const dest=s.focus[s.focus.length-1];
+          nodeEls[dest].classList.add("pulse");
+          setTimeout(res,260*speed);
+        }
+      }
+      raf=requestAnimationFrame(frame);
+    });
+  }
+
+  async function goto(i,manual){
+    if(i<0||i>=steps.length)return;
+    if(manual)playing=false, updatePlay();
+    idx=i;
+    await animateStep(i);
+    if(playing){
+      if(idx<steps.length-1){setTimeout(()=>{if(playing)goto(idx+1);},300*speed);}
+      else{playing=false;updatePlay();}
+    }
+  }
+  function updatePlay(){section.querySelector(".act-play").textContent=playing?"⏸ หยุดชั่วคราว":"▶ เล่นอัตโนมัติ";}
+
+  section.querySelector(".act-play").addEventListener("click",()=>{
+    if(playing){playing=false;updatePlay();if(raf)cancelAnimationFrame(raf);return;}
+    playing=true;updatePlay();
+    if(idx>=steps.length-1||idx<0)goto(0); else goto(idx);
+  });
+  section.querySelector(".act-next").addEventListener("click",()=>goto(Math.min(idx+1,steps.length-1),true));
+  section.querySelector(".act-prev").addEventListener("click",()=>goto(Math.max(idx-1,0),true));
+  section.querySelector(".act-reset").addEventListener("click",()=>{
+    playing=false;updatePlay();if(raf)cancelAnimationFrame(raf);
+    idx=-1;clearActive();setList(-1);token.classList.remove("show");
+  });
+
+  // init at step 0 (static)
+  goto(0,true);
+}
+
+/* tabs */
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".flow").forEach(f=>f.classList.remove("show"));
+    tab.classList.add("active");
+    document.getElementById("flow-"+tab.dataset.flow).classList.add("show");
+  });
+});
+
+buildFlow(document.getElementById("flow-prep"),PREP);
+buildFlow(document.getElementById("flow-offline"),OFFLINE,
+  {dim:{nodes:["issuer","vical"],conns:["iss_wallet","iss_vical","vical_reader"]}});
+</script>
+</body>
+</html>
