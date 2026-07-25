@@ -56,6 +56,14 @@ Convert relative dates in the transcript to absolute (พ.ศ.). Keep it faithfu
    Add a short **bold lead-in line** before a group of quotes when the topic shifts. Include the decisive quotes: definitions read aloud, objections, answers, and the chairman's มติ wording.
 6. **Closing disclaimer** (italic, after `---`): quotes were corrected from auto-transcription; verify before formal citation.
 
+## Completeness — ครบทุกวาระก่อนค่อยย่อ (MANDATORY)
+Never silently drop an agenda item. (Observed failure: a compact summary of a 189-min meeting dropped agenda 5.1/5.2 entirely — late, dense items get squeezed out when summarizing in one pass.)
+1. **Build the agenda checklist FIRST**: scan the whole transcript and list every agenda item before writing anything. If the user attaches the official agenda / meeting invite, that list is the authoritative checklist.
+2. **Every agenda item MUST appear in the report.** No discussion happened → write "ไม่มี" under that item — never omit it.
+3. **Shorten within an item, never by cutting an item.** Per item, minimum capture (when present in the transcript): มติ · ตัวเลข · วันที่/เดดไลน์ · การมอบหมาย (ใคร-ทำอะไร-เมื่อไหร่) · ประเด็นอภิปรายสำคัญ.
+4. **Long transcripts (> ~1 hr or very large):** summarize agenda-by-agenda (or time-chunk by chunk) first, then merge and polish — prevents the answer budget running out before late agenda items.
+5. **End the report with a self-audit table**: `| วาระ | สถานะ (สรุปแล้ว / ไม่มีการหารือ) |` so the human can verify coverage at a glance.
+
 ## Speaker names
 Auto-transcription mangles names. Resolve them in this order:
 1. **If `<skill_dir>/references/dga-people.md` exists, read it first** — an OPTIONAL machine-local roster mapping MS Teams speaker labels (EN) and nicknames to verified Thai names/roles. This file is **NOT distributed with the public skill repo** (PDPA — it contains personal data); each user creates their own following `references/dga-people.example.md`. If the file is absent, skip silently to the next steps.
@@ -65,8 +73,8 @@ Auto-transcription mangles names. Resolve them in this order:
 
 ## Steps
 1. Determine the mode (`normal` default; `have-quote` if the user asked for quotes — see Modes).
-2. Read the transcript fully (page through if large).
-3. Draft the report and **Write** the `.md` file using the structure for the chosen mode (and the matching output filename).
+2. Read the transcript fully (page through if large) and **build the agenda checklist** (see Completeness — this checklist governs the whole report).
+3. Draft the report and **Write** the `.md` file using the structure for the chosen mode (and the matching output filename) — every checklist item present, self-audit table at the end.
 4. Generate the `.docx` from that `.md` by running the bundled script:
    ```bash
    python3 "<skill_dir>/scripts/gen_docx.py" "<path-to-the-.md-you-wrote>"
