@@ -10,6 +10,36 @@
     --txt:#e8ecf6; --muted:#9aa6c6; --accent:#5cd0ff;
     --mdl:#ffcf5c; --qr:#5cd0ff; --req:#b58cff; --key:#5ee6a8; --cert:#ff9f6b; --ble:#ff7fb0; --sd:#7ae5d8; --ok:#c9f76f;
   }
+  /* ---------- โหมดสว่าง — สลับด้วยปุ่ม 🌓 (ค่าเริ่มต้น = มืด, จำค่าไว้ที่เครื่อง) ---------- */
+  html.light{
+    --bg:#eef1f8; --bg2:#ffffff; --card:#ffffff; --line:#c9d2e6;
+    --txt:#16204a; --muted:#5a6790; --accent:#0f7fbf;
+    --mdl:#b8860b; --qr:#0f7fbf; --req:#7a3fd0; --key:#0e9c6a; --cert:#c2621f; --ble:#c73b73; --sd:#0f8f88; --ok:#4f8a10;
+    --t1:#0e9c6a; --t2:#4457c9; --t3:#0f86b8;
+  }
+  html.light body{background:radial-gradient(1200px 700px at 70% -10%,#ffffff 0%,var(--bg) 62%)}
+  html.light .canvas{background:linear-gradient(180deg,#ffffff,#f4f7fd)}
+  html.light .node .box{fill:url(#nodefillL);stroke:#b7c4de}
+  html.light .node.active .box{filter:drop-shadow(0 0 8px rgba(15,127,191,.35))}
+  html.light .conn{stroke:#9fb0d0;opacity:.85}
+  html.light .zone-divider{stroke:#a9b8d6;opacity:.9}
+  html.light .token text{fill:#ffffff}
+  html.light ol.steps li:hover,html.light ol.steps li.active{background:#eaf0fb}
+  html.light .num{background:#dbe4f5;color:var(--txt)}
+  html.light button.ctl{background:#e8eefa;color:var(--txt)}
+  html.light button.ctl:hover{background:#dae4f6;border-color:#9fb2d6}
+  html.light button.ctl.primary{background:linear-gradient(180deg,#2f8fd8,#1f6fb0);border-color:#1f6fb0;color:#fff}
+  html.light select.ctl{background:#e8eefa;color:var(--txt)}
+  html.light .tab{background:#ffffff}
+  html.light .tab.active{background:linear-gradient(180deg,#e3edfb,#d3e3f8);color:#0d2f52}
+  html.light .foot{color:#65708f}
+  html.light .offline-flag{color:#053a20}
+  #themeBtn{
+    position:fixed;top:16px;right:20px;z-index:20;width:40px;height:40px;border-radius:50%;
+    border:1px solid var(--line);background:var(--card);color:var(--txt);
+    font-size:18px;cursor:pointer;opacity:.75;transition:.15s;line-height:1;
+  }
+  #themeBtn:hover{opacity:1;border-color:var(--accent)}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{
@@ -105,6 +135,7 @@
 </style>
 </head>
 <body>
+<button id="themeBtn" title="สลับโหมดสว่าง/มืด">🌓</button>
 <header>
   <h1>🚗 mDL — แสดงใบขับขี่ดิจิทัลแบบ Offline</h1>
   <span class="sub">ISO/IEC 18013-5 · mdoc · Device Engagement (QR) + BLE · ติดตามการเคลื่อนที่ของข้อมูลตามเส้นทาง</span>
@@ -263,6 +294,9 @@ function buildFlow(section, steps, opts={}){
   defs.innerHTML = `
     <linearGradient id="nodefill" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#1d2747"/><stop offset="1" stop-color="#141c36"/>
+    </linearGradient>
+    <linearGradient id="nodefillL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eef2fb"/>
     </linearGradient>`;
   svg.appendChild(defs);
 
@@ -424,6 +458,16 @@ function buildFlow(section, steps, opts={}){
   // init at step 0 (static)
   goto(0,true);
 }
+
+/* theme: สลับสว่าง/มืด + จำค่าไว้ที่เครื่อง */
+(function(){
+  const KEY="sdDeckTheme";
+  if(localStorage.getItem(KEY)==="light")document.documentElement.classList.add("light");
+  document.getElementById("themeBtn").addEventListener("click",()=>{
+    const light=document.documentElement.classList.toggle("light");
+    localStorage.setItem(KEY,light?"light":"dark");
+  });
+})();
 
 /* tabs */
 document.querySelectorAll(".tab").forEach(tab=>{
