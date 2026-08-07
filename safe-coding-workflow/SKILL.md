@@ -193,6 +193,24 @@ If an item cannot be verified in this environment (e.g., no test runner availabl
 
 ---
 
+## When the project has no test suite
+
+Many real projects — scripts, document pipelines, agent systems, internal tools, prototypes — have no pytest/jest suite, no typechecker, and no linter config. The core rule does not relax: **never claim something works that you have not observed working.** Only the instruments change. Substitute these, cheapest first, and write the chosen command into the plan exactly as you would a test:
+
+1. **Load check** — proves the code still parses and imports, in about a second:
+   `python3 -c "import pkg.module"` · `node --check file.js` · `bash -n script.sh` · `tsc --noEmit` · `jq empty config.json`
+2. **Smoke run** — start the thing and touch it once: run the CLI with `--help`, `curl` the health endpoint and read the status code, open the page. Record the actual output line, not "it ran".
+3. **Targeted end-to-end script** — for UI/browser/API work, a short script that drives the real thing (Playwright, curl, a scratch client) and prints explicit pass/fail per assertion. **Keep the script** — it is the regression test the project didn't have, and the next change gets it for free.
+4. **Before/after evidence on the same command** — screenshot, JSON output, or diff of identical invocations run before and after the change. This is how you get a baseline when there are no tests to run.
+5. **Verify at the destination** — if the change ships (deploy, sync, publish), check there too: local success is not deployment success.
+6. **Verify the delivery step itself** — after `git push`/deploy, confirm the remote state actually moved (`git status -sb` showing no unpushed commits, a fetched health endpoint, the file visible at the destination). Reporting "pushed" because the command exited 0 without checking the resulting state is the same failure class as claiming a test passed without running it.
+
+Two things that look like verification but are not: *reading the diff and finding it correct* (that is review, not execution), and *the tool reporting success* (an editor writing a file proves the write, not the behavior).
+
+If none of these are possible, say so plainly in the report — "no way to execute this here; unverified" — and never let an unverified claim sit in a Summary line.
+
+---
+
 ## Reporting format
 
 Final reports use this structure:
