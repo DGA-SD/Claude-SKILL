@@ -64,6 +64,15 @@ Never silently drop an agenda item. (Observed failure: a compact summary of a 18
 4. **Long transcripts (> ~1 hr or very large):** summarize agenda-by-agenda (or time-chunk by chunk) first, then merge and polish — prevents the answer budget running out before late agenda items.
 5. **End the report with a self-audit table**: `| วาระ | สถานะ (สรุปแล้ว / ไม่มีการหารือ) |` so the human can verify coverage at a glance.
 
+## Thai typography — keyboard characters only (MANDATORY)
+Thai official documents do not use typographic dashes or curly quotes, and experienced readers spot them instantly as machine-written. Both the `.md` and the `.docx` must be free of them.
+
+- **Never emit**: `—` (em dash) · `–` (en dash) · `…` · `“ ” ‘ ’` (curly quotes) · non-breaking space · `≥ ≤ ×`
+- **Replace `—` with the Thai connective the sentence actually needs**: ซึ่ง · ที่ · โดย · เพราะ · ดังนั้น · ส่วน · คือ · ได้แก่ — or split into two sentences, or use parentheses for an aside. Choose per meaning; never substitute one fixed word everywhere.
+- Straight quotes `"` `'` · `...` for ellipsis · `-` for hyphen · `>=` `<=` `x`
+- Exception: verbatim quotes from the transcript keep the speaker's own wording (but auto-transcription rarely produces these characters anyway), and file names/URLs stay as-is.
+- **Check before delivering**: `grep -c '[—–…“”‘’]' <file>.md` must return 0.
+
 ## Speaker names
 Auto-transcription mangles names. Resolve them in this order:
 1. **If `<skill_dir>/references/dga-people.md` exists, read it first** — an OPTIONAL machine-local roster mapping MS Teams speaker labels (EN) and nicknames to verified Thai names/roles. This file is **NOT distributed with the public skill repo** (PDPA — it contains personal data); each user creates their own following `references/dga-people.example.md`. If the file is absent, skip silently to the next steps.
