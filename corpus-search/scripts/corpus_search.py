@@ -41,6 +41,8 @@ def load_docs(corpus_dir: str, scope: str | None = None) -> dict[str, str]:
         files += glob.glob(os.path.join(corpus_dir, "**", ext), recursive=True)
     for f in sorted(files):
         rel = os.path.relpath(f, corpus_dir)
+        if rel == "INDEX.md":   # สารบัญคลังไม่ใช่เนื้อเอกสาร ไม่ควรติดผลค้น/ถูกอ้างเป็นแหล่ง
+            continue
         if scope and scope.lower() not in rel.lower():
             continue
         try:
@@ -102,6 +104,37 @@ def search(
     return out
 
 
+def log_usage(corpus_dir: str, query: str, results: list[dict]) -> None:
+    """บันทึกว่าไฟล์ไหนถูกเรียกใช้จากการค้น (append TSV: วันที่ ไฟล์ คำค้น)
+
+    เก็บที่ <corpus_dir>/usage-log.tsv (override ด้วย env CORPUS_USAGE_LOG,
+    ปิดด้วย CORPUS_USAGE_LOG=off) — ใช้เทียบภายหลังว่าเล่มไหนไม่เคยถูกค้นเลย
+    ห้าม logging ล้มแล้วพังการค้น จึงกลืน error ทั้งหมด
+    """
+    dest = os.environ.get("CORPUS_USAGE_LOG") or os.path.join(corpus_dir, "usage-log.tsv")
+    if dest.lower() == "off":
+        return
+    try:
+        import datetime
+        today = datetime.date.today().isoformat()
+        q = (query or "").replace("\t", " ").replace("\n", " ")[:120]
+        seen: list[str] = []
+        for r in results:
+            if r["source"] not in seen:
+                seen.append(r["source"])
+        new_file = not os.path.exists(dest)
+        with open(dest, "a", encoding="utf-8") as fh:
+            if new_file:
+                fh.write("date\tfile\tquery\n")
+            if seen:
+                for name in seen:
+                    fh.write(f"{today}\t{name}\t{q}\n")
+            else:
+                fh.write(f"{today}\t(no-hit)\t{q}\n")
+    except Exception:
+        pass
+
+
 def main() -> int:
     p = argparse.ArgumentParser(
         description="ค้นเอกสารใน corpus แล้วคืน excerpt สั้น ๆ (keyword window search)"
@@ -149,6 +182,7 @@ def main() -> int:
         a.query, corpus_dir, k=a.k, scope=a.scope,
         size=a.window, overlap=a.overlap, excerpt_chars=a.chars,
     )
+    log_usage(corpus_dir, a.query, res)
 
     if a.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
