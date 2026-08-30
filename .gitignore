@@ -14,6 +14,15 @@ Thumbs.db
 __pycache__/
 *.pyc
 
+# meeting-transcribe: virtualenvs สร้างด้วย scripts/setup.sh ในเครื่องใครเครื่องมัน
+.venv*/
+
+# PDPA: transcript การประชุมมีชื่อบุคคลจริง ห้ามขึ้น repo
+*.transcript.txt
+*.m4a
+*.wav
+*.mp3
+
 # เอกสารต้นฉบับ/คลังค้น — repo นี้เก็บ "เครื่องมือ" ไม่เก็บ "เนื้อหา"
 corpus/
 *.pdf
