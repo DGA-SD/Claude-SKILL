@@ -1,5 +1,8 @@
 # PDPA: ไฟล์รายชื่อบุคคลจริงต้องอยู่เฉพาะเครื่องผู้ใช้ ห้ามขึ้น repo
 **/references/dga-people.md
+**/references/dga-people.md.enc
+**/references/dga-people.md.bak*
+**/references/dga-people.md.bak*.enc
 
 # ไฟล์ zip ที่ export มาจาก Claude chat — แหล่งจริงคือโฟลเดอร์ skill ใน repo
 *.zip

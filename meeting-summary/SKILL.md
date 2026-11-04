@@ -75,10 +75,13 @@ Thai official documents do not use typographic dashes or curly quotes, and exper
 
 ## Speaker names
 Auto-transcription mangles names. Resolve them in this order:
-1. **If `<skill_dir>/references/dga-people.md` exists, read it first** — an OPTIONAL machine-local roster mapping MS Teams speaker labels (EN) and nicknames to verified Thai names/roles. This file is **NOT distributed with the public skill repo** (PDPA — it contains personal data); each user creates their own following `references/dga-people.example.md`. If the file is absent, skip silently to the next steps.
+1. **Load the OPTIONAL machine-local roster first** (maps MS Teams speaker labels (EN) and nicknames to verified Thai names/roles; NOT distributed with the public skill repo (PDPA); each user creates their own following `references/dga-people.example.md`). Two forms, checked in this order:
+   - **Encrypted (preferred): `<skill_dir>/references/dga-people.md.enc`**: run `bash "<skill_dir>/scripts/roster_decrypt.sh"` and read the roster from its stdout only. Never write the decrypted text to any file ("key separate from box": the box is the .enc file, the key lives outside the skill folder: env `MEETING_ROSTER_KEY`, or macOS Keychain service `meeting-roster`, or `~/.config/meeting-summary/roster.key` chmod 600; Windows users use the env var or the key file). If the script fails because no key is found, tell the user how to set one (`bash scripts/roster_encrypt.sh --init` on the machine that owns the roster, or copy the key via a secret channel) and continue without the roster.
+   - **Plaintext (legacy): `<skill_dir>/references/dga-people.md`**: read directly. Use only when no `.enc` exists; suggest the user encrypt it with `bash scripts/roster_encrypt.sh references/dga-people.md` and delete the plaintext.
+   If neither file exists, skip silently to the next steps.
 2. The user's memory file `dga-speaker-nicknames` (if present on this machine) — nickname→name/role map for DGA meetings (e.g. รองฯ ไอรดา = "พี่นิด").
 3. The English speaker labels in the transcript itself (Teams account names) — usually reliable even when the Thai speech-to-text is garbled — combined with conversation context.
-4. If still uncertain, use the role + note the garbled/nickname form, and flag it to the user at the end for confirmation. When the user confirms a name, offer to record it in the local `references/dga-people.md` (create the file if needed; flip ❓ → ✅).
+4. If still uncertain, use the role + note the garbled/nickname form, and flag it to the user at the end for confirmation. When the user confirms a name, offer to record it in the local roster (flip ❓ → ✅). With the encrypted form: decrypt to stdout, apply the edit in memory, write the updated text to a temporary file, re-encrypt it with `roster_encrypt.sh` over the `.enc`, then delete the temporary file in the same command (the plaintext must not remain on disk). With the legacy plaintext form, edit `references/dga-people.md` directly (create if needed).
 
 ## Steps
 1. Determine the mode (`normal` default; `have-quote` if the user asked for quotes — see Modes).
