@@ -9,6 +9,7 @@ extract_pdf — แปลง PDF ภาษาไทย → text สะอาด 
 ใช้:
     python3 extract_pdf.py <file.pdf> [<file2.pdf> ...] [-o OUTDIR] [--stdout]
     python3 extract_pdf.py --check          # ตรวจว่าเครื่องมีเครื่องมือครบไหม
+    (บน Windows ใช้ python หรือ py แทน python3)
 
 ผลลัพธ์: <OUTDIR>/<ชื่อไฟล์>.txt   (default OUTDIR = ./corpus)
 รายงานคุณภาพต่อไฟล์: จำนวนบรรทัด, % บรรทัดสั้น, สัดส่วนอักขระไทย
@@ -48,17 +49,75 @@ SARA_AM_FIXES = {
 }
 
 
+_TOOLS: dict = {}
+_NOT_POPPLER: set = set()
+
+
+def _is_poppler(exe: str) -> bool:
+    try:
+        r = subprocess.run(
+            [exe, "-v"], capture_output=True, encoding="utf-8", errors="replace",
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "poppler" in ((r.stdout or "") + (r.stderr or "")).lower()
+
+
+def find_tool(name: str) -> str | None:
+    """หาโปรแกรมของ poppler (pdftotext / pdfinfo) บน PATH
+
+    บน Windows โปรแกรม Git for Windows พก pdftotext ของ xpdf มาด้วย และ Git Bash
+    (shell ที่ Claude Code ใช้) วางไว้หน้า PATH จึงบังตัวของ poppler ที่ติดตั้งเอง
+    xpdf จัด layout ต่างจาก poppler ดังนั้นไล่ดูทุกตัวบน PATH แล้วเลือกตัวที่เป็น poppler ก่อน
+    ถ้าไม่มีจึงใช้ตัวแรกที่เจอ (ระบบอื่นใช้ตัวแรกบน PATH เหมือนเดิม)
+    """
+    if os.name != "nt":
+        return shutil.which(name)
+    if name not in _TOOLS:
+        chosen = first = None
+        seen = set()
+        for d in os.environ.get("PATH", "").split(os.pathsep):
+            exe = os.path.join(d.strip('"'), name + ".exe")
+            key = os.path.normcase(os.path.abspath(exe))
+            if not d or key in seen or not os.path.isfile(exe):
+                continue
+            seen.add(key)
+            first = first or exe
+            if _is_poppler(exe):
+                chosen = exe
+                break
+        if chosen is None:
+            chosen = first or shutil.which(name)
+            if chosen:
+                _NOT_POPPLER.add(name)
+        _TOOLS[name] = chosen
+    return _TOOLS[name]
+
+
 def have_pdftotext() -> bool:
-    return shutil.which("pdftotext") is not None
+    return find_tool("pdftotext") is not None
+
+
+def warn_if_not_poppler() -> None:
+    if "pdftotext" in _NOT_POPPLER:
+        print(
+            "!! pdftotext ที่พบไม่ใช่ของ poppler (น่าจะเป็น xpdf ที่มากับ Git for Windows) "
+            "การจัด layout จะต่างจาก poppler ถ้าต้องการผลที่ตรงกันให้ติดตั้ง poppler:\n"
+            + INSTALL_HINT,
+            file=sys.stderr,
+        )
 
 
 def page_count(pdf_path: str) -> int | None:
     """นับหน้าจาก pdfinfo ถ้ามี — ใช้ประเมินว่า text ที่ได้น้อยผิดปกติไหม"""
-    if shutil.which("pdfinfo") is None:
+    pdfinfo = find_tool("pdfinfo")
+    if pdfinfo is None:
         return None
     try:
         out = subprocess.run(
-            ["pdfinfo", pdf_path], capture_output=True, text=True, check=True
+            [pdfinfo, pdf_path], capture_output=True, check=True,
+            encoding="utf-8", errors="replace",
         ).stdout
         m = re.search(r"^Pages:\s+(\d+)", out, re.M)
         return int(m.group(1)) if m else None
@@ -134,9 +193,10 @@ def extract(
 
     pages = page_count(pdf_path)
     proc = subprocess.run(
-        ["pdftotext", "-layout", "-enc", "UTF-8", pdf_path, "-"],
+        [find_tool("pdftotext"), "-layout", "-enc", "UTF-8", pdf_path, "-"],
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if proc.returncode != 0:
         print(f"!! pdftotext ล้มเหลว: {pdf_path}\n{proc.stderr.strip()}", file=sys.stderr)
@@ -148,7 +208,7 @@ def extract(
         txt, fixed = fix_sara_am(txt)
     q = quality(txt, pages)
     if fixed:
-        print(f"   ✔ ซ่อมคำเพี้ยนจาก font encoding {fixed} จุด (สระอำ -> สระอา)")
+        print(f"   ✔ ซ่อมคำเพี้ยนจาก font encoding {fixed} จุด (สระอำ -> สระอา)", flush=True)
 
     if to_stdout:
         sys.stdout.write(txt)
@@ -157,12 +217,13 @@ def extract(
         out = os.path.join(
             outdir, os.path.splitext(os.path.basename(pdf_path))[0] + ".txt"
         )
-        with open(out, "w", encoding="utf-8") as f:
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
             f.write(txt)
         pg = f", pages={q['pages']}" if q["pages"] else ""
         print(
             f"-> {out}  (lines={q['lines']}, chars={q['chars']}{pg}, "
-            f"short={q['short_pct']}%, thai={q['thai_pct']}%)"
+            f"short={q['short_pct']}%, thai={q['thai_pct']}%)",
+            flush=True,
         )
 
     for w in q["warn"]:
@@ -170,7 +231,25 @@ def extract(
     return 2 if q["warn"] else 0
 
 
+def force_utf8_output() -> None:
+    """ให้ stdout/stderr เป็น UTF-8 ทุกระบบ (Windows ที่ผลถูกส่งผ่าน pipe จะใช้ cp874/cp1252 แล้วพิมพ์ไทยไม่ได้)"""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
+INSTALL_HINT = (
+    "  macOS   : brew install poppler\n"
+    "  Ubuntu  : sudo apt install poppler-utils\n"
+    "  Windows : winget install oschwartz10612.Poppler  (หรือ choco install poppler / scoop install poppler)\n"
+    "            แล้วเปิดหน้าต่าง terminal ใหม่ให้ PATH อัปเดต"
+)
+
+
 def main() -> int:
+    force_utf8_output()
     p = argparse.ArgumentParser(
         description="แปลง PDF ภาษาไทยเป็น text สะอาด (pdftotext -layout)"
     )
@@ -194,26 +273,25 @@ def main() -> int:
 
     if a.check:
         ok = have_pdftotext()
-        print("pdftotext:", shutil.which("pdftotext") if ok else "NOT FOUND")
-        print("pdfinfo  :", shutil.which("pdfinfo") or "NOT FOUND (optional)")
+        print("pdftotext:", find_tool("pdftotext") if ok else "NOT FOUND")
+        print("pdfinfo  :", find_tool("pdfinfo") or "NOT FOUND (optional)")
         if not ok:
             print(
-                "\nติดตั้ง poppler ก่อน:\n"
-                "  macOS : brew install poppler\n"
-                "  Ubuntu: sudo apt install poppler-utils",
+                "\nติดตั้ง poppler ก่อน:\n" + INSTALL_HINT,
                 file=sys.stderr,
             )
             return 1
+        warn_if_not_poppler()
         return 0
 
     if not have_pdftotext():
         print(
-            "!! ไม่พบคำสั่ง pdftotext (poppler)\n"
-            "   macOS : brew install poppler\n"
-            "   Ubuntu: sudo apt install poppler-utils",
+            "!! ไม่พบคำสั่ง pdftotext (poppler) ติดตั้งก่อน:\n" + INSTALL_HINT,
             file=sys.stderr,
         )
         return 1
+
+    warn_if_not_poppler()
 
     if not a.pdfs:
         p.print_usage()
