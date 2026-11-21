@@ -14,6 +14,8 @@ description: >
 compatibility: >
   ต้องมี poppler (คำสั่ง pdftotext) และ python3
   macOS: brew install poppler | Ubuntu/Debian: sudo apt install poppler-utils
+  Windows: winget install oschwartz10612.Poppler (หรือ choco install poppler / scoop install poppler) แล้วเปิด terminal ใหม่
+  บน Windows ใช้คำสั่ง python หรือ py แทน python3
   ตรวจด้วย: python3 scripts/extract_pdf.py --check
 ---
 
@@ -39,6 +41,13 @@ python3 scripts/extract_pdf.py --check
 ```
 ถ้าไม่พบ `pdftotext` ให้แจ้งผู้ใช้ติดตั้ง poppler ก่อน — **อย่า fallback ไปใช้ตัวแปลงอื่นเงียบ ๆ**
 เพราะจะได้ภาษาไทยเพี้ยน ซึ่งเป็นปัญหาที่ skill นี้มีไว้แก้
+
+**บน Windows** (ทดสอบ 21 พ.ย. 2569 บน Windows Server 2022 และ 2025 กับ Python 3.10 และ 3.13 ใน PowerShell, Git Bash และ cmd):
+- ใช้ `python` หรือ `py` แทน `python3` ในทุกคำสั่งของ skill นี้
+- Git for Windows มี `pdftotext` ของ xpdf ติดมา ซึ่งจัด layout ต่างจาก poppler สคริปต์จะเลือกตัวที่เป็น poppler ให้เอง
+  ถ้า `--check` เตือนว่าตัวที่พบไม่ใช่ของ poppler ให้ติดตั้ง poppler ตามคำแนะนำที่สคริปต์พิมพ์
+- ให้เขียนผลลงไฟล์ด้วย `-o` เป็นหลัก การใช้ `--stdout > ไฟล์` ใน Windows PowerShell 5.1 อาจทำให้ข้อความไทยเพี้ยน
+- ยังไม่ได้ทดสอบบน Windows ที่ตั้งภาษาระบบเป็นไทย ถ้าเจอข้อความเพี้ยนให้แจ้งผู้ใช้ และลองตั้ง `PYTHONUTF8=1` ก่อนรัน
 
 ### 2. แปลงไฟล์
 

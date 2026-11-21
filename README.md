@@ -191,17 +191,29 @@ cp -r Claude-SKILL/safe-coding-workflow ~/.claude/skills/
 | ตรวจจับ+ซ่อม **font encoding เพี้ยน** | PDF ราชการบางไฟล์เข้ารหัส **สระอา (า) เป็นสระอำ (ำ)** ได้คำที่ไม่มีจริงอย่าง `กำร` แทน `การ`, `ควำม` แทน `ความ` — สคริปต์ตรวจเจอและซ่อมให้ด้วย `--fix-sara` |
 | ซ่อมแบบ**เจาะจงคำ** ไม่มั่ว | แทนที่เฉพาะคำที่พิสูจน์ได้ว่าไม่ใช่คำไทย — **ไม่** replace `ำ`→`า` ทั้งไฟล์ (จะพังคำที่ถูกต้องอย่าง คำ ทำ นำ สำนัก กำหนด) |
 
-**ข้อกำหนดของเครื่อง:** `poppler` (คำสั่ง `pdftotext`)
+**ข้อกำหนดของเครื่อง:** Python 3 และ `poppler` (คำสั่ง `pdftotext`)
 ```bash
-brew install poppler          # macOS
-sudo apt install poppler-utils # Ubuntu/Debian
+brew install poppler                     # macOS
+sudo apt install poppler-utils           # Ubuntu/Debian
+winget install oschwartz10612.Poppler    # Windows (หรือ choco install poppler / scoop install poppler) แล้วเปิด terminal ใหม่
 ```
 
-**ติดตั้ง:**
+**ติดตั้ง (macOS / Linux / Git Bash บน Windows):**
 ```bash
 cp -r Claude-SKILL/thai-pdf-extract ~/.claude/skills/
-python3 ~/.claude/skills/thai-pdf-extract/scripts/extract_pdf.py --check   # ตรวจว่าเครื่องพร้อม
+python3 ~/.claude/skills/thai-pdf-extract/scripts/extract_pdf.py --check   # ตรวจว่าเครื่องพร้อม (บน Windows ใช้ python หรือ py แทน python3)
 ```
+
+**ติดตั้ง (Windows PowerShell):**
+```powershell
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills" | Out-Null
+Copy-Item -Recurse Claude-SKILL\thai-pdf-extract "$env:USERPROFILE\.claude\skills\"
+python "$env:USERPROFILE\.claude\skills\thai-pdf-extract\scripts\extract_pdf.py" --check
+```
+
+> **Windows:** สคริปต์ทดสอบแล้วบน Windows Server 2022 และ 2025 (ภาษาระบบอังกฤษ) กับ Python 3.10 และ 3.13 ใน PowerShell, Git Bash และ cmd
+> ได้ข้อความตรงกับที่ได้บน macOS ทุกไบต์ สิ่งที่ยังไม่ได้ทดสอบคือ Windows ที่ตั้งภาษาระบบเป็นไทย และการที่ Claude Code เรียก skill เองบน Windows
+> Git for Windows มี `pdftotext` ของ xpdf ติดมาด้วย สคริปต์จะเลือกตัวของ poppler ให้เอง และ `--check` จะเตือนถ้าเครื่องมีแต่ตัวของ xpdf
 
 **วิธีใช้:** สั่งงานตามปกติ — skill trigger เองเมื่อเจอ PDF ภาษาไทย:
 ```
